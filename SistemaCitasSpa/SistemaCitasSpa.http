@@ -1,0 +1,6 @@
+@SistemaCitasSpa_HostAddress = http://localhost:5027
+
+GET {{SistemaCitasSpa_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
