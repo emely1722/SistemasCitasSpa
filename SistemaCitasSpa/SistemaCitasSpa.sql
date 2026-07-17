@@ -1,4 +1,4 @@
-﻿IF DB_ID('Biblioteca') IS NULL
+﻿IF DB_ID('SistemasCitasSpa') IS NULL
 BEGIN 
 CREATE DATABASE SistemasCitasSpa;
 END
