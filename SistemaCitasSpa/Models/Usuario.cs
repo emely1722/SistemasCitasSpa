@@ -4,6 +4,7 @@ namespace SistemasCitasSpa.Models
 {
     public class Usuario
     {
+        [Key]
         public int IdUsuario { get; set; }
 
         [Required(ErrorMessage = "Nombre completo es requerido")]

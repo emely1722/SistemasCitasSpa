@@ -1,0 +1,15 @@
+﻿namespace SistemasCitasSpa.DTOs
+{
+    public class LoginDto
+    {
+        public string NombreUsuario { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+    }
+
+    public class AuthResponseDto
+    {
+        public string Token { get; set; } = string.Empty;
+        public DateTime Expiracion { get; set; }
+        public string Usuario { get; set; } = string.Empty;
+    }
+}
