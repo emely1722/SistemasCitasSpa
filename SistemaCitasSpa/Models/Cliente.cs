@@ -2,18 +2,17 @@
 
 namespace SistemasCitasSpa.Models
 {
-    public class Cliente
+    public class Cliente 
     {
+        [Key]
         public int IdCliente { get; set; }
 
         [Required(ErrorMessage = "El nombre es requerido")]
-        [StringLength(60, MinimumLength = 2,
-            ErrorMessage = "El nombre debe tener de 2 a 60 caracteres")]
+        [StringLength(60, MinimumLength = 2, ErrorMessage = "El nombre debe tener de 2 a 60 caracteres")]
         public required string Nombre { get; set; }
 
         [Required(ErrorMessage = "El apellido es requerido")]
-        [StringLength(60, MinimumLength = 2,
-            ErrorMessage = "El apellido debe tener de 2 a 60 caracteres")]
+        [StringLength(60, MinimumLength = 2, ErrorMessage = "El apellido debe tener de 2 a 60 caracteres")]
         public required string Apellido { get; set; }
 
         [Required(ErrorMessage = "El teléfono es requerido")]
