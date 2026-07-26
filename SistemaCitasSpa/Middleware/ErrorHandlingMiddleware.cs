@@ -1,7 +1,7 @@
 ﻿using System.Net;
 using System.Text.Json;
 
-namespace SistemasCitasSpa.DTOs
+namespace SistemaCitasSpa.Middleware
 {
     public class ErrorHandlingMiddleware
     {

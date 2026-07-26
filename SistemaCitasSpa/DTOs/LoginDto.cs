@@ -1,15 +1,13 @@
-﻿namespace SistemasCitasSpa.DTOs
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace SistemasCitasSpa.DTOs
 {
     public class LoginDto
     {
-        public string NombreUsuario { get; set; } = string.Empty;
-        public string Password { get; set; } = string.Empty;
-    }
+        [Required(ErrorMessage = "El usuario o correo es requerido")]
+        public required string UsuarioOCorreo { get; set; }
 
-    public class AuthResponseDto
-    {
-        public string Token { get; set; } = string.Empty;
-        public DateTime Expiracion { get; set; }
-        public string Usuario { get; set; } = string.Empty;
+        [Required(ErrorMessage = "La contraseña es requerida")]
+        public required string Clave { get; set; }
     }
 }
