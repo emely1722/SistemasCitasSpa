@@ -80,10 +80,10 @@ namespace SistemasCitasSpa.Controllers
         [HttpPost]
         public async Task<IActionResult> PostServicio(ServicioDto dto)
         {
-            var categoria = await _context.CategoriasServicios
-                .FindAsync(dto.IdCategoria);
+            var categoriaExiste = await _context.CategoriasServicios
+                .AnyAsync(c => c.IdCategoria == dto.IdCategoria);
 
-            if (categoria == null)
+            if (!categoriaExiste)
             {
                 return BadRequest(new
                 {
@@ -96,7 +96,7 @@ namespace SistemasCitasSpa.Controllers
 
             if (existe)
             {
-                return BadRequest(new
+                return Conflict(new
                 {
                     mensaje = "Ya existe un servicio con ese nombre"
                 });
@@ -118,7 +118,16 @@ namespace SistemasCitasSpa.Controllers
             return CreatedAtAction(
                 nameof(GetServicio),
                 new { id = servicio.IdServicio },
-                servicio);
+                new
+                {
+                    servicio.IdServicio,
+                    servicio.Nombre,
+                    servicio.Descripcion,
+                    servicio.Precio,
+                    servicio.DuracionMinutos,
+                    servicio.IdCategoria,
+                    servicio.Activo
+                });
         }
 
         // PUT: api/Servicios/5
