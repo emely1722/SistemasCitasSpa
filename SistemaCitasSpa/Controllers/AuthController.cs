@@ -30,6 +30,60 @@ namespace SistemasCitasSpa.Controllers
             _passwordHasher = passwordHasher;
         }
 
+        // POST: api/Auth/register
+        [AllowAnonymous]
+        [HttpPost("register")]
+        public async Task<IActionResult> Register(RegistroUsuarioDto dto)
+        {
+            var existeUsuario = await _context.Usuarios
+                .AnyAsync(u => u.NombreUsuario == dto.NombreUsuario);
+
+            if (existeUsuario)
+            {
+                return BadRequest(new
+                {
+                    mensaje = "El nombre de usuario ya está registrado"
+                });
+            }
+
+            var existeCorreo = await _context.Usuarios
+                .AnyAsync(u => u.Correo == dto.Correo);
+
+            if (existeCorreo)
+            {
+                return BadRequest(new
+                {
+                    mensaje = "El correo ya está registrado"
+                });
+            }
+
+            var usuario = new Usuario
+            {
+                NombreCompleto = dto.NombreCompleto,
+                NombreUsuario = dto.NombreUsuario,
+                Correo = dto.Correo,
+                ClaveHash = "",
+                Activo = true
+            };
+
+            usuario.ClaveHash = _passwordHasher.HashPassword(
+                usuario,
+                dto.Clave);
+
+            _context.Usuarios.Add(usuario);
+            await _context.SaveChangesAsync();
+
+            return StatusCode(201, new
+            {
+                mensaje = "Usuario registrado correctamente",
+                usuario.IdUsuario,
+                usuario.NombreCompleto,
+                usuario.NombreUsuario,
+                usuario.Correo
+            });
+        }
+
+        // POST: api/Auth/login
         [AllowAnonymous]
         [HttpPost("login")]
         public async Task<IActionResult> Login(LoginDto dto)
@@ -72,14 +126,12 @@ namespace SistemasCitasSpa.Controllers
 
             var token = GenerarToken(usuario);
 
-            int duracion = int.TryParse(
-                _configuration["Jwt:DurationInMinutes"],
-                out int minutos)
-                ? minutos
-                : 60;
+            var duracion = Convert.ToDouble(
+                _configuration["Jwt:DurationInMinutes"] ?? "60");
 
             return Ok(new
             {
+                mensaje = "Inicio de sesión correcto",
                 token,
                 expiracion = DateTime.UtcNow.AddMinutes(duracion),
                 usuario = usuario.NombreUsuario
@@ -103,19 +155,16 @@ namespace SistemasCitasSpa.Controllers
                     usuario.Correo)
             };
 
-            var key = new SymmetricSecurityKey(
+            var clave = new SymmetricSecurityKey(
                 Encoding.UTF8.GetBytes(
                     _configuration["Jwt:Key"]!));
 
             var credenciales = new SigningCredentials(
-                key,
+                clave,
                 SecurityAlgorithms.HmacSha256);
 
-            int duracion = int.TryParse(
-                _configuration["Jwt:DurationInMinutes"],
-                out int minutos)
-                ? minutos
-                : 60;
+            var duracion = Convert.ToDouble(
+                _configuration["Jwt:DurationInMinutes"] ?? "60");
 
             var token = new JwtSecurityToken(
                 issuer: _configuration["Jwt:Issuer"],

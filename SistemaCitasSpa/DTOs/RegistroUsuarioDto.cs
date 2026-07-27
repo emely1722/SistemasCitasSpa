@@ -4,11 +4,11 @@ namespace SistemasCitasSpa.DTOs
 {
     public class RegistroUsuarioDto
     {
-        [Required(ErrorMessage = "El nombre es requerido")]
+        [Required(ErrorMessage = "El nombre completo es requerido")]
         [StringLength(100, MinimumLength = 3)]
         public required string NombreCompleto { get; set; }
 
-        [Required(ErrorMessage = "El usuario es requerido")]
+        [Required(ErrorMessage = "El nombre de usuario es requerido")]
         [StringLength(50, MinimumLength = 3)]
         public required string NombreUsuario { get; set; }
 
