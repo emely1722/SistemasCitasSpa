@@ -4,15 +4,20 @@ namespace SistemasCitasSpa.DTOs
 {
     public class ActualizarUsuarioDto
     {
-        [Required(ErrorMessage = "El nombre de usuario es obligatorio")]
-        public string NombreUsuario { get; set; } = string.Empty;
+        [Required(ErrorMessage = "El nombre completo es requerido")]
+        [StringLength(100)]
+        public required string NombreCompleto { get; set; }
 
-        [Required(ErrorMessage = "El correo es obligatorio")]
-        [EmailAddress(ErrorMessage = "El correo no tiene un formato válido")]
-        public string Email { get; set; } = string.Empty;
+        [Required(ErrorMessage = "El nombre de usuario es requerido")]
+        [StringLength(50)]
+        public required string NombreUsuario { get; set; }
 
-        public string? Password { get; set; }
+        [Required(ErrorMessage = "El correo es requerido")]
+        [EmailAddress(ErrorMessage = "El correo no es válido")]
+        public required string Correo { get; set; }
 
-        public string Rol { get; set; } = "Usuario";
+        public string? Clave { get; set; }
+
+        public bool Activo { get; set; }
     }
 }

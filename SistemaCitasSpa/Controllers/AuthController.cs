@@ -1,7 +1,8 @@
 ﻿using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using System.Security.Cryptography;
 using System.Text;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -17,84 +18,114 @@ namespace SistemasCitasSpa.Controllers
     {
         private readonly AppDbContext _context;
         private readonly IConfiguration _configuration;
+        private readonly IPasswordHasher<Usuario> _passwordHasher;
 
-        public AuthController(AppDbContext context, IConfiguration configuration)
+        public AuthController(
+            AppDbContext context,
+            IConfiguration configuration,
+            IPasswordHasher<Usuario> passwordHasher)
         {
             _context = context;
             _configuration = configuration;
+            _passwordHasher = passwordHasher;
         }
 
-        // POST: api/Auth/register
-        [HttpPost("register")]
-        public async Task<IActionResult> Register([FromBody] RegistroDto dto)
-        {
-            if (await _context.Usuarios.AnyAsync(u => u.NombreUsuario == dto.NombreUsuario))
-                return BadRequest(new { mensaje = "El nombre de usuario ya está registrado." });
-
-            var usuario = new Usuario
-            {
-                NombreUsuario = dto.NombreUsuario,
-                NombreCompleto = dto.NombreUsuario,
-                Correo = dto.Email,
-                ClaveHash = HashPassword(dto.Password),
-                Rol = "Usuario"
-            };
-
-            _context.Usuarios.Add(usuario);
-            await _context.SaveChangesAsync();
-
-            return Ok(new { mensaje = "Usuario registrado exitosamente." });
-        }
-
-        // POST: api/Auth/login
+        [AllowAnonymous]
         [HttpPost("login")]
-        public async Task<IActionResult> Login([FromBody] LoginDto dto)
+        public async Task<IActionResult> Login(LoginDto dto)
         {
+            var dato = dto.UsuarioOCorreo.Trim();
+
             var usuario = await _context.Usuarios
-                .FirstOrDefaultAsync(u => u.NombreUsuario == dto.NombreUsuario);
+                .FirstOrDefaultAsync(u =>
+                    u.NombreUsuario == dato ||
+                    u.Correo == dato);
 
-            if (usuario == null || usuario.ClaveHash != HashPassword(dto.Password))
-                return Unauthorized(new { mensaje = "Credenciales incorrectas." });
+            if (usuario == null)
+            {
+                return Unauthorized(new
+                {
+                    mensaje = "Usuario o contraseña incorrectos"
+                });
+            }
 
-            var token = GenerarJwtToken(usuario);
+            if (!usuario.Activo)
+            {
+                return Unauthorized(new
+                {
+                    mensaje = "El usuario está inactivo"
+                });
+            }
+
+            var resultado = _passwordHasher.VerifyHashedPassword(
+                usuario,
+                usuario.ClaveHash,
+                dto.Clave);
+
+            if (resultado == PasswordVerificationResult.Failed)
+            {
+                return Unauthorized(new
+                {
+                    mensaje = "Usuario o contraseña incorrectos"
+                });
+            }
+
+            var token = GenerarToken(usuario);
+
+            int duracion = int.TryParse(
+                _configuration["Jwt:DurationInMinutes"],
+                out int minutos)
+                ? minutos
+                : 60;
 
             return Ok(new
             {
-                token = token,
-                expiracion = DateTime.UtcNow.AddMinutes(Convert.ToDouble(_configuration["Jwt:DurationInMinutes"] ?? "60")),
+                token,
+                expiracion = DateTime.UtcNow.AddMinutes(duracion),
                 usuario = usuario.NombreUsuario
             });
         }
 
-        private string GenerarJwtToken(Usuario usuario)
+        private string GenerarToken(Usuario usuario)
         {
             var claims = new[]
             {
-                new Claim(ClaimTypes.NameIdentifier, usuario.IdUsuario.ToString()),
-                new Claim(ClaimTypes.Name, usuario.NombreUsuario),
-                new Claim(ClaimTypes.Role, usuario.Rol ?? "Usuario"),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+                new Claim(
+                    ClaimTypes.NameIdentifier,
+                    usuario.IdUsuario.ToString()),
+
+                new Claim(
+                    ClaimTypes.Name,
+                    usuario.NombreUsuario),
+
+                new Claim(
+                    ClaimTypes.Email,
+                    usuario.Correo)
             };
 
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+            var key = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(
+                    _configuration["Jwt:Key"]!));
+
+            var credenciales = new SigningCredentials(
+                key,
+                SecurityAlgorithms.HmacSha256);
+
+            int duracion = int.TryParse(
+                _configuration["Jwt:DurationInMinutes"],
+                out int minutos)
+                ? minutos
+                : 60;
 
             var token = new JwtSecurityToken(
                 issuer: _configuration["Jwt:Issuer"],
                 audience: _configuration["Jwt:Audience"],
                 claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(Convert.ToDouble(_configuration["Jwt:DurationInMinutes"] ?? "60")),
-                signingCredentials: creds
-            );
+                expires: DateTime.UtcNow.AddMinutes(duracion),
+                signingCredentials: credenciales);
 
-            return new JwtSecurityTokenHandler().WriteToken(token);
-        }
-
-        private static string HashPassword(string password)
-        {
-            using var sha256 = SHA256.Create();
-            var bytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
-            return Convert.ToBase64String(bytes);
+            return new JwtSecurityTokenHandler()
+                .WriteToken(token);
         }
     }
 }

@@ -19,24 +19,30 @@ namespace SistemasCitasSpa.Controllers
             _context = context;
         }
 
-        // GET: api/Citas
+        // GET: api/Clientes
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Cita>>> GetCitas()
+        public async Task<IActionResult> GetCitas()
         {
-            return await _context.Citas
+            var citas = await _context.Citas
+                .AsNoTracking()
                 .Include(c => c.Cliente)
                 .Include(c => c.Servicio)
                 .Include(c => c.Terapeuta)
                 .Include(c => c.Sala)
                 .Include(c => c.MetodoPago)
                 .ToListAsync();
+
+            var resultado = citas.Select(c => MostrarCita(c));
+
+            return Ok(resultado);
         }
 
-        // GET: api/Citas/5
+        // GET: api/Clientes
         [HttpGet("{id}")]
-        public async Task<ActionResult<Cita>> GetCita(int id)
+        public async Task<IActionResult> GetCita(int id)
         {
             var cita = await _context.Citas
+                .AsNoTracking()
                 .Include(c => c.Cliente)
                 .Include(c => c.Servicio)
                 .Include(c => c.Terapeuta)
@@ -46,125 +52,234 @@ namespace SistemasCitasSpa.Controllers
 
             if (cita == null)
             {
-                return NotFound(new { mensaje = $"No se encontró la cita con ID {id}." });
+                return NotFound(new
+                {
+                    mensaje = "La cita no existe"
+                });
             }
 
-            return cita;
+            return Ok(MostrarCita(cita));
         }
 
-        // POST: api/Citas
+        // POST: api/Clientes
         [HttpPost]
-        public async Task<ActionResult<Cita>> PostCita(CrearCitaDto dto)
+        public async Task<IActionResult> PostCita(CitaDto dto)
         {
-            DateTime fechaHoraCita = dto.Fecha.ToDateTime(dto.Hora);
-            if (fechaHoraCita < DateTime.Now)
+            var fechaHora = dto.Fecha.Date.Add(dto.Hora);
+
+            if (fechaHora <= DateTime.Now)
             {
-                return BadRequest(new { mensaje = "No se pueden agendar citas en fechas o horas pasadas." });
+                return BadRequest(new
+                {
+                    mensaje = "No se puede registrar una cita en una fecha pasada"
+                });
             }
 
             var cliente = await _context.Clientes.FindAsync(dto.IdCliente);
+
             if (cliente == null)
-                return BadRequest(new { mensaje = "El cliente especificado no existe." });
+                return BadRequest(new { mensaje = "El cliente no existe" });
 
             var servicio = await _context.Servicios.FindAsync(dto.IdServicio);
+
             if (servicio == null)
-                return BadRequest(new { mensaje = "El servicio especificado no existe." });
+                return BadRequest(new { mensaje = "El servicio no existe" });
 
             var terapeuta = await _context.Terapeutas.FindAsync(dto.IdTerapeuta);
+
             if (terapeuta == null)
-                return BadRequest(new { mensaje = "El terapeuta especificado no existe." });
+                return BadRequest(new { mensaje = "El terapeuta no existe" });
 
             var sala = await _context.Salas.FindAsync(dto.IdSala);
+
             if (sala == null)
-                return BadRequest(new { mensaje = "La sala especificada no existe." });
+                return BadRequest(new { mensaje = "La sala no existe" });
+
+            if (dto.IdMetodoPago.HasValue)
+            {
+                var metodo = await _context.MetodosPago
+                    .FindAsync(dto.IdMetodoPago.Value);
+
+                if (metodo == null)
+                    return BadRequest(new { mensaje = "El método de pago no existe" });
+            }
 
             var cita = new Cita
             {
                 IdCliente = dto.IdCliente,
-                Fecha = dto.Fecha,
+                Fecha = dto.Fecha.Date,
                 Hora = dto.Hora,
                 IdServicio = dto.IdServicio,
                 DuracionMinutos = servicio.DuracionMinutos,
                 IdTerapeuta = dto.IdTerapeuta,
                 IdSala = dto.IdSala,
-                IdMetodoPago = dto.IdMetodoPago,
-                FechaRegistro = DateTime.Now
+                IdMetodoPago = dto.IdMetodoPago
             };
 
             _context.Citas.Add(cita);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetCita), new { id = cita.IdCita }, cita);
+            return CreatedAtAction(
+                nameof(GetCita),
+                new { id = cita.IdCita },
+                new
+                {
+                    mensaje = "Cita registrada correctamente",
+                    cita.IdCita
+                });
         }
 
-        // PUT: api/Citas/5
+        // PUT: api/Clientes/5
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutCita(int id, Cita cita)
+        public async Task<IActionResult> PutCita(
+            int id,
+            CitaDto dto)
         {
-            if (id != cita.IdCita)
-            {
-                return BadRequest(new { mensaje = "El ID de la URL no coincide con el ID de la cita enviada." });
-            }
+            var cita = await _context.Citas.FindAsync(id);
 
-            var citaExistente = await _context.Citas.FindAsync(id);
-            if (citaExistente == null)
+            if (cita == null)
             {
-                return NotFound(new { mensaje = $"No existe una cita registrada con el ID {id} para actualizar." });
-            }
-
-            DateTime fechaHoraCita = cita.Fecha.ToDateTime(cita.Hora);
-            if (fechaHoraCita < DateTime.Now)
-            {
-                return BadRequest(new { mensaje = "No se puede actualizar una cita a una fecha o hora pasada." });
-            }
-
-            citaExistente.IdCliente = cita.IdCliente;
-            citaExistente.Fecha = cita.Fecha;
-            citaExistente.Hora = cita.Hora;
-            citaExistente.IdServicio = cita.IdServicio;
-            citaExistente.DuracionMinutos = cita.DuracionMinutos;
-            citaExistente.IdTerapeuta = cita.IdTerapeuta;
-            citaExistente.IdSala = cita.IdSala;
-            citaExistente.IdMetodoPago = cita.IdMetodoPago;
-
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!CitaExists(id))
+                return NotFound(new
                 {
-                    return NotFound(new { mensaje = "La cita dejó de existir durante la actualización." });
-                }
-                else
-                {
-                    throw;
-                }
+                    mensaje = "La cita no existe"
+                });
             }
 
-            return Ok(new { mensaje = "Cita actualizada correctamente.", cita = citaExistente });
+            var fechaHora = dto.Fecha.Date.Add(dto.Hora);
+
+            if (fechaHora <= DateTime.Now)
+            {
+                return BadRequest(new
+                {
+                    mensaje = "La fecha y hora no pueden estar en el pasado"
+                });
+            }
+
+            if (!await _context.Clientes
+                .AnyAsync(c => c.IdCliente == dto.IdCliente))
+            {
+                return BadRequest(new { mensaje = "El cliente no existe" });
+            }
+
+            var servicio = await _context.Servicios.FindAsync(dto.IdServicio);
+
+            if (servicio == null)
+            {
+                return BadRequest(new { mensaje = "El servicio no existe" });
+            }
+
+            if (!await _context.Terapeutas
+                .AnyAsync(t => t.IdTerapeuta == dto.IdTerapeuta))
+            {
+                return BadRequest(new { mensaje = "El terapeuta no existe" });
+            }
+
+            if (!await _context.Salas
+                .AnyAsync(s => s.IdSala == dto.IdSala))
+            {
+                return BadRequest(new { mensaje = "La sala no existe" });
+            }
+
+            if (dto.IdMetodoPago.HasValue &&
+                !await _context.MetodosPago.AnyAsync(m =>
+                    m.IdMetodoPago == dto.IdMetodoPago.Value))
+            {
+                return BadRequest(new
+                {
+                    mensaje = "El método de pago no existe"
+                });
+            }
+
+            cita.IdCliente = dto.IdCliente;
+            cita.Fecha = dto.Fecha.Date;
+            cita.Hora = dto.Hora;
+            cita.IdServicio = dto.IdServicio;
+            cita.DuracionMinutos = servicio.DuracionMinutos;
+            cita.IdTerapeuta = dto.IdTerapeuta;
+            cita.IdSala = dto.IdSala;
+            cita.IdMetodoPago = dto.IdMetodoPago;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                mensaje = "Cita actualizada correctamente"
+            });
         }
 
-        // DELETE: api/Citas/
+        // DELETE: api/Clientes/5
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteCita(int id)
         {
             var cita = await _context.Citas.FindAsync(id);
+
             if (cita == null)
             {
-                return NotFound(new { mensaje = $"No se puede eliminar. No existe la cita con el ID {id}." });
+                return NotFound(new
+                {
+                    mensaje = "La cita no existe"
+                });
             }
 
             _context.Citas.Remove(cita);
             await _context.SaveChangesAsync();
 
-            return Ok(new { mensaje = $"Cita con ID {id} eliminada exitosamente." });
+            return NoContent();
         }
 
-        private bool CitaExists(int id)
+        private object MostrarCita(Cita cita)
         {
-            return _context.Citas.Any(e => e.IdCita == id);
+            var inicio = cita.Fecha.Date.Add(cita.Hora);
+            var final = inicio.AddMinutes(cita.DuracionMinutos);
+            var ahora = DateTime.Now;
+
+            string estado;
+
+            if (ahora < inicio)
+                estado = "Vigente";
+            else if (ahora < final)
+                estado = "En proceso";
+            else
+                estado = "Finalizado";
+
+            var restante = inicio - ahora;
+
+            int dias = 0;
+            int horas = 0;
+
+            if (restante > TimeSpan.Zero)
+            {
+                dias = restante.Days;
+                horas = restante.Hours;
+            }
+
+            return new
+            {
+                cita.IdCita,
+
+                Cliente = cita.Cliente == null
+                    ? null
+                    : cita.Cliente.Nombre + " " + cita.Cliente.Apellido,
+
+                cita.Fecha,
+                cita.Hora,
+
+                Servicio = cita.Servicio?.Nombre,
+
+                cita.DuracionMinutos,
+
+                Terapeuta = cita.Terapeuta == null
+                    ? null
+                    : cita.Terapeuta.Nombre + " " + cita.Terapeuta.Apellido,
+
+                Sala = cita.Sala?.Nombre,
+
+                MetodoPago = cita.MetodoPago?.Nombre,
+
+                DiasRestantes = dias,
+                HorasRestantes = horas,
+                Estado = estado
+            };
         }
     }
 }

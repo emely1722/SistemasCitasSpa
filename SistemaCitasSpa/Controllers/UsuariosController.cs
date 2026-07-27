@@ -1,6 +1,5 @@
-﻿using System.Security.Cryptography;
-using System.Text;
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SistemasCitasSpa.Data;
@@ -15,152 +14,200 @@ namespace SistemasCitasSpa.Controllers
     public class UsuariosController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly IPasswordHasher<Usuario> _passwordHasher;
 
-        public UsuariosController(AppDbContext context)
+        public UsuariosController(
+            AppDbContext context,
+            IPasswordHasher<Usuario> passwordHasher)
         {
             _context = context;
+            _passwordHasher = passwordHasher;
         }
 
-        // GET: api/Usuarios
+        // GET: api/Usuario
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<object>>> GetUsuarios()
+        public async Task<IActionResult> GetUsuarios()
         {
-            return await _context.Usuarios
+            var usuarios = await _context.Usuarios
+                .AsNoTracking()
                 .Select(u => new
                 {
                     u.IdUsuario,
-                    u.NombreUsuario,
                     u.NombreCompleto,
+                    u.NombreUsuario,
                     u.Correo,
-                    u.Rol
+                    u.Activo
                 })
                 .ToListAsync();
+
+            return Ok(usuarios);
         }
 
-        // GET: api/Usuarios/5
+        // GET: api/Usuario
         [HttpGet("{id}")]
-        public async Task<ActionResult<object>> GetUsuario(int id)
+        public async Task<IActionResult> GetUsuario(int id)
         {
             var usuario = await _context.Usuarios
+                .AsNoTracking()
                 .Where(u => u.IdUsuario == id)
                 .Select(u => new
                 {
                     u.IdUsuario,
-                    u.NombreUsuario,
                     u.NombreCompleto,
+                    u.NombreUsuario,
                     u.Correo,
-                    u.Rol
+                    u.Activo
                 })
                 .FirstOrDefaultAsync();
 
             if (usuario == null)
             {
-                return NotFound(new { mensaje = $"No se encontró el usuario con ID {id}." });
+                return NotFound(new
+                {
+                    mensaje = "El usuario no existe"
+                });
             }
 
-            return usuario;
+            return Ok(usuario);
         }
 
-        // POST: api/Usuarios
+        // POST: api/Usuario
+        [AllowAnonymous]
         [HttpPost]
-        public async Task<ActionResult<Usuario>> PostUsuario(RegistroDto dto)
+        public async Task<IActionResult> PostUsuario(
+            RegistroUsuarioDto dto)
         {
-            if (await _context.Usuarios.AnyAsync(u => u.NombreUsuario == dto.NombreUsuario))
+            var usuarioExiste = await _context.Usuarios
+                .AnyAsync(u => u.NombreUsuario == dto.NombreUsuario);
+
+            if (usuarioExiste)
             {
-                return BadRequest(new { mensaje = "El nombre de usuario ya está registrado." });
+                return BadRequest(new
+                {
+                    mensaje = "El nombre de usuario ya está registrado"
+                });
+            }
+
+            var correoExiste = await _context.Usuarios
+                .AnyAsync(u => u.Correo == dto.Correo);
+
+            if (correoExiste)
+            {
+                return BadRequest(new
+                {
+                    mensaje = "El correo ya está registrado"
+                });
             }
 
             var usuario = new Usuario
             {
+                NombreCompleto = dto.NombreCompleto,
                 NombreUsuario = dto.NombreUsuario,
-                NombreCompleto = dto.NombreUsuario, // Puedes ajustar esto si agregas NombreCompleto a tu DTO
-                Correo = dto.Email,
-                ClaveHash = HashPassword(dto.Password),
-                Rol = "Usuario"
+                Correo = dto.Correo,
+                ClaveHash = "",
+                Activo = true
             };
+
+            usuario.ClaveHash = _passwordHasher.HashPassword(
+                usuario,
+                dto.Clave);
 
             _context.Usuarios.Add(usuario);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetUsuario), new { id = usuario.IdUsuario }, new
+            return CreatedAtAction(
+                nameof(GetUsuario),
+                new { id = usuario.IdUsuario },
+                new
+                {
+                    usuario.IdUsuario,
+                    usuario.NombreCompleto,
+                    usuario.NombreUsuario,
+                    usuario.Correo,
+                    usuario.Activo
+                });
+        }
+
+        // PUT: api/Usuario
+        [HttpPut("{id}")]
+        public async Task<IActionResult> PutUsuario(
+            int id,
+            ActualizarUsuarioDto dto)
+        {
+            var usuario = await _context.Usuarios.FindAsync(id);
+
+            if (usuario == null)
             {
-                usuario.IdUsuario,
-                usuario.NombreUsuario,
-                usuario.NombreCompleto,
-                usuario.Correo,
-                usuario.Rol
+                return NotFound(new
+                {
+                    mensaje = "El usuario no existe"
+                });
+            }
+
+            var usuarioExiste = await _context.Usuarios
+                .AnyAsync(u =>
+                    u.NombreUsuario == dto.NombreUsuario &&
+                    u.IdUsuario != id);
+
+            if (usuarioExiste)
+            {
+                return BadRequest(new
+                {
+                    mensaje = "El nombre de usuario ya está registrado"
+                });
+            }
+
+            var correoExiste = await _context.Usuarios
+                .AnyAsync(u =>
+                    u.Correo == dto.Correo &&
+                    u.IdUsuario != id);
+
+            if (correoExiste)
+            {
+                return BadRequest(new
+                {
+                    mensaje = "El correo ya está registrado"
+                });
+            }
+
+            usuario.NombreCompleto = dto.NombreCompleto;
+            usuario.NombreUsuario = dto.NombreUsuario;
+            usuario.Correo = dto.Correo;
+            usuario.Activo = dto.Activo;
+
+            if (!string.IsNullOrWhiteSpace(dto.Clave))
+            {
+                usuario.ClaveHash = _passwordHasher.HashPassword(
+                    usuario,
+                    dto.Clave);
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                mensaje = "Usuario actualizado correctamente"
             });
         }
 
-        // PUT: api/Usuarios/5
-        [HttpPut("{id}")]
-        public async Task<IActionResult> PutUsuario(int id, ActualizarUsuarioDto dto)
-        {
-            var usuarioExistente = await _context.Usuarios.FindAsync(id);
-            if (usuarioExistente == null)
-            {
-                return NotFound(new { mensaje = $"No existe un usuario con el ID {id}." });
-            }
-
-            if (await _context.Usuarios.AnyAsync(u => u.NombreUsuario == dto.NombreUsuario && u.IdUsuario != id))
-            {
-                return BadRequest(new { mensaje = "El nombre de usuario ya está ocupado por otro registro." });
-            }
-
-            usuarioExistente.NombreUsuario = dto.NombreUsuario;
-            usuarioExistente.Correo = dto.Email;
-            usuarioExistente.Rol = dto.Rol;
-
-            if (!string.IsNullOrWhiteSpace(dto.Password))
-            {
-                usuarioExistente.ClaveHash = HashPassword(dto.Password);
-            }
-
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!UsuarioExists(id))
-                {
-                    return NotFound(new { mensaje = "El usuario ya no existe." });
-                }
-                else
-                {
-                    throw;
-                }
-            }
-
-            return Ok(new { mensaje = "Usuario actualizado correctamente." });
-        }
-
-        // DELETE: api/Usuarios/5
+        // DELETE: api/Usuario
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteUsuario(int id)
         {
             var usuario = await _context.Usuarios.FindAsync(id);
+
             if (usuario == null)
             {
-                return NotFound(new { mensaje = $"No se encontró el usuario con el ID {id} para eliminar." });
+                return NotFound(new
+                {
+                    mensaje = "El usuario no existe"
+                });
             }
 
             _context.Usuarios.Remove(usuario);
             await _context.SaveChangesAsync();
 
-            return Ok(new { mensaje = $"Usuario con ID {id} eliminado exitosamente." });
-        }
-
-        private bool UsuarioExists(int id)
-        {
-            return _context.Usuarios.Any(e => e.IdUsuario == id);
-        }
-
-        private static string HashPassword(string password)
-        {
-            using var sha256 = SHA256.Create();
-            var bytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
-            return Convert.ToBase64String(bytes);
+            return NoContent();
         }
     }
 }
