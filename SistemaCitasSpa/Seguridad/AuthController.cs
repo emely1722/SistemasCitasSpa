@@ -129,6 +129,12 @@ namespace SistemaCitasSpa.Controllers
             var duracion = Convert.ToDouble(
                 _configuration["Jwt:DurationInMinutes"] ?? "60");
 
+            Console.WriteLine();
+            Console.WriteLine("TOKEN GENERADO");
+            Console.WriteLine(token);
+            Console.WriteLine("");
+            Console.WriteLine();
+
             return Ok(new
             {
                 mensaje = "Inicio de sesión correcto",
@@ -138,22 +144,27 @@ namespace SistemaCitasSpa.Controllers
             });
         }
 
+        //token
         private string GenerarToken(Usuario usuario)
         {
             var claims = new[]
             {
-                new Claim(
-                    ClaimTypes.NameIdentifier,
-                    usuario.IdUsuario.ToString()),
+        new Claim(
+            ClaimTypes.NameIdentifier,
+            usuario.IdUsuario.ToString()),
 
-                new Claim(
-                    ClaimTypes.Name,
-                    usuario.NombreUsuario),
+        new Claim(
+            ClaimTypes.Name,
+            usuario.NombreUsuario),
 
-                new Claim(
-                    ClaimTypes.Email,
-                    usuario.Correo)
-            };
+        new Claim(
+            ClaimTypes.Email,
+            usuario.Correo),
+
+        new Claim(
+            JwtRegisteredClaimNames.Jti,
+            Guid.NewGuid().ToString())
+    };
 
             var clave = new SymmetricSecurityKey(
                 Encoding.UTF8.GetBytes(
@@ -164,12 +175,13 @@ namespace SistemaCitasSpa.Controllers
                 SecurityAlgorithms.HmacSha256);
 
             var duracion = Convert.ToDouble(
-                _configuration["Jwt:DurationInMinutes"] ?? "60");
+                _configuration["Jwt:DurationInMinutes"]);
 
             var token = new JwtSecurityToken(
                 issuer: _configuration["Jwt:Issuer"],
                 audience: _configuration["Jwt:Audience"],
                 claims: claims,
+                notBefore: DateTime.UtcNow,
                 expires: DateTime.UtcNow.AddMinutes(duracion),
                 signingCredentials: credenciales);
 
