@@ -88,12 +88,18 @@ namespace SistemaCitasSpa.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login(LoginDto dto)
         {
+            Console.WriteLine("");
+            Console.WriteLine("Dato recibido: " + dto.UsuarioOCorreo);
+            Console.WriteLine("Clave recibida: " + dto.Clave);
+
             var dato = dto.UsuarioOCorreo.Trim();
 
             var usuario = await _context.Usuarios
                 .FirstOrDefaultAsync(u =>
                     u.NombreUsuario == dato ||
                     u.Correo == dato);
+
+            Console.WriteLine("Usuario encontrado: " + (usuario != null));
 
             if (usuario == null)
             {
@@ -103,18 +109,16 @@ namespace SistemaCitasSpa.Controllers
                 });
             }
 
-            if (!usuario.Activo)
-            {
-                return Unauthorized(new
-                {
-                    mensaje = "El usuario está inactivo"
-                });
-            }
+            Console.WriteLine("Nombre Usuario: " + usuario.NombreUsuario);
+            Console.WriteLine("Correo: " + usuario.Correo);
+            Console.WriteLine("Hash BD: " + usuario.ClaveHash);
 
             var resultado = _passwordHasher.VerifyHashedPassword(
                 usuario,
                 usuario.ClaveHash,
                 dto.Clave);
+
+            Console.WriteLine("Resultado PasswordHasher: " + resultado);
 
             if (resultado == PasswordVerificationResult.Failed)
             {
@@ -126,21 +130,9 @@ namespace SistemaCitasSpa.Controllers
 
             var token = GenerarToken(usuario);
 
-            var duracion = Convert.ToDouble(
-                _configuration["Jwt:DurationInMinutes"] ?? "60");
-
-            Console.WriteLine();
-            Console.WriteLine("TOKEN GENERADO");
-            Console.WriteLine(token);
-            Console.WriteLine("");
-            Console.WriteLine();
-
             return Ok(new
             {
-                mensaje = "Inicio de sesión correcto",
-                token,
-                expiracion = DateTime.UtcNow.AddMinutes(duracion),
-                usuario = usuario.NombreUsuario
+                token
             });
         }
 
