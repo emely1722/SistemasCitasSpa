@@ -10,7 +10,7 @@ using SistemasCitasSpa.Data;
 using SistemasCitasSpa.DTOs;
 using SistemasCitasSpa.Models;
 
-namespace SistemaCitasSpa.Seguridad
+namespace SistemaCitasSpa.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]

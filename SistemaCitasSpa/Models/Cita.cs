@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SistemasCitasSpa.Models
 {
@@ -38,5 +39,39 @@ namespace SistemasCitasSpa.Models
         public Sala? Sala { get; set; }
 
         public MetodoPago? MetodoPago { get; set; }
+
+        [NotMapped]
+        public string Estado
+        {
+            get
+            {
+                DateTime inicio = Fecha.Date.Add(Hora);
+                DateTime fin = inicio.AddMinutes(DuracionMinutos);
+
+                if (DateTime.Now < inicio)
+                    return "Vigente";
+
+                if (DateTime.Now >= inicio && DateTime.Now < fin)
+                    return "En proceso";
+
+                return "Finalizado";
+            }
+        }
+
+        [NotMapped]
+        public string TiempoRestante
+        {
+            get
+            {
+                DateTime inicio = Fecha.Date.Add(Hora);
+
+                if (DateTime.Now >= inicio)
+                    return "La cita ya inició.";
+
+                TimeSpan diferencia = inicio - DateTime.Now;
+
+                return $"{diferencia.Days} día(s) y {diferencia.Hours} hora(s)";
+            }
+        }
     }
 }
