@@ -32,7 +32,7 @@ namespace SistemaCitasSpa.Middleware
             var response = new
             {
                 statusCode = context.Response.StatusCode,
-                mensaje = "Ha ocurrido un error interno en el servidor. Por favor, intente más tarde.",
+                mensaje = "Ha ocurrido un error interno en el servidor",
                 detalle = exception.Message
             };
 

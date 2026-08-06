@@ -6,6 +6,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using SistemasCitasSpa.Data;
 using SistemasCitasSpa.Models;
+using SistemaCitasSpa.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -110,7 +111,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
+app.UseMiddleware<ErrorHandlingMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 

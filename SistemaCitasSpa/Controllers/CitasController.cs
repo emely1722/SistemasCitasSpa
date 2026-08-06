@@ -37,7 +37,7 @@ namespace SistemasCitasSpa.Controllers
             return Ok(resultado);
         }
 
-        // GET: api/Citas/5
+        // GET: api/Citas/{id}
         [HttpGet("{id}")]
         public async Task<IActionResult> GetCita(int id)
         {
