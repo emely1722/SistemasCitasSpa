@@ -43,7 +43,7 @@ namespace SistemasCitasSpa.Controllers
             return Ok(usuarios);
         }
 
-        // GET: api/Usuario
+        // GET: api/Usuario/{id}
         [HttpGet("{id}")]
         public async Task<IActionResult> GetUsuario(int id)
         {
@@ -128,7 +128,7 @@ namespace SistemasCitasSpa.Controllers
                 });
         }
 
-        // PUT: api/Usuario
+        // PUT: api/Usuario/{id}
         [HttpPut("{id}")]
         public async Task<IActionResult> PutUsuario(
             int id,

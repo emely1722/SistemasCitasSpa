@@ -16,6 +16,7 @@ namespace SistemasCitasSpa.DTOs
         [EmailAddress(ErrorMessage = "El correo no es válido")]
         public required string Correo { get; set; }
 
+        [StringLength(100, MinimumLength = 8)]
         public string? Clave { get; set; }
 
         public bool Activo { get; set; }

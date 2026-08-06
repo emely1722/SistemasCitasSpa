@@ -30,6 +30,7 @@ namespace SistemasCitasSpa.Controllers
             return Ok(categorias);
         }
 
+        // GET: api/CategoriasServicios/{id}
         [HttpGet("{id}")]
         public async Task<IActionResult> GetCategoria(int id)
         {
